@@ -68,7 +68,7 @@ export class CrDetailComponent implements OnInit {
 	}
 
 	get canReject(): boolean {
-	return this.detail?.status === 'PENDING_APPROVAL' && canApprovePolicy(this.session.user);
+		return this.detail?.status === 'PENDING_APPROVAL' && canApprovePolicy(this.session.user);
 	}
 
 	fmt(amount: number): string {
@@ -77,12 +77,37 @@ export class CrDetailComponent implements OnInit {
 
 	async approve(): Promise<void> {
 		// TODO: perform the approve action through the API and reflect the outcome in the view.
-		throw new Error('approve() not implemented');
+		if (!this.canApprove || this.submitting) return;
+		this.submitting = true;
+		this.actionError = undefined;
+		try {
+			const updated = await this.api.approve(this.session.user, this.id, new Date().toISOString());
+			this.state = { status: 'loaded', data: updated };
+		} catch (err) {
+			this.actionError = (err as Error).message;
+		} finally {
+			this.submitting = false;
+		}
 	}
 
 	async reject(): Promise<void> {
 		// TODO: require a valid rejectControl, then perform the reject action through the API and
 		//       reflect the outcome in the view.
-		throw new Error('reject() not implemented');
+		if (!this.canReject || this.submitting) return;
+		if (this.rejectControl.invalid) {
+			this.rejectControl.markAsTouched();
+			return;
+		}
+		this.submitting = true;
+		this.actionError = undefined;
+		try {
+			const updated = await this.api.reject(this.session.user, this.id, new Date().toISOString(), this.rejectControl.value.trim());
+			this.state = { status: 'loaded', data: updated };
+			this.rejectControl.reset();
+		} catch (err) {
+			this.actionError = (err as Error).message;
+		} finally {
+			this.submitting = false;
+		}
 	}
 }
