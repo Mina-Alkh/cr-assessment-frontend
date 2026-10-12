@@ -8,6 +8,7 @@ import { idle, loading, ViewState } from '../../common/view-state';
 import { computeDiff, DiffRow } from '../diff.util';
 import { formatMoney } from '../../common/money.util';
 import { canApprovePolicy } from '../../common/permissions';
+import { Validators } from '@angular/forms';
 
 /**
  * Change Request DETAIL page: loads a CR and renders the diff/preview, the approval timeline, and
@@ -27,7 +28,7 @@ export class CrDetailComponent implements OnInit {
 	submitting = false;
 	actionError?: string;
 	// TODO: add validation so the form is invalid until a reason is entered.
-	rejectControl = new FormControl('', { nonNullable: true });
+	rejectControl = new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.pattern(/\S/)] });
 
 	constructor(private readonly api: CrApiService, private readonly session: SessionService) {}
 
@@ -67,7 +68,7 @@ export class CrDetailComponent implements OnInit {
 	}
 
 	get canReject(): boolean {
-		return this.detail?.status === 'PENDING_APPROVAL';
+	return this.detail?.status === 'PENDING_APPROVAL' && canApprovePolicy(this.session.user);
 	}
 
 	fmt(amount: number): string {
