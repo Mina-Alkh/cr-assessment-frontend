@@ -27,10 +27,9 @@ describe('CrDetailComponent', () => {
 		expect(fixture.nativeElement.querySelector('.cr-detail__header h2').textContent).toContain('Add 1 unit of SKU-A');
 	});
 
-	it('disables Approve for a read-only viewer on a pending CR', async () => {
+	it('hides Approve for a read-only viewer on a pending CR', async () => {
 		const fixture = await render(users.viewer, 'CR-1'); // viewer: cr_r_o only; CR-1 is PENDING_APPROVAL
-		const approveBtn: HTMLButtonElement = fixture.nativeElement.querySelector('.cr-actions__approve');
-		expect(approveBtn.disabled).toBe(true);
+		expect(fixture.nativeElement.querySelector('.cr-actions__approve')).toBeNull();
 	});
 
 	it('renders diff rows with the right kind for each SKU', async () => {
@@ -70,8 +69,7 @@ describe('CrDetailComponent', () => {
 
 	it('does not allow actions on a CR that is not pending, even for an approver', async () => {
 		const fixture = await render(users.approver, 'CR-2'); // APPLIED
-		const approve: HTMLButtonElement = fixture.nativeElement.querySelector('.cr-actions__approve');
-		expect(approve.disabled).toBe(true);
+		expect(fixture.nativeElement.querySelector('.cr-actions__approve')).toBeNull();
 		expect(fixture.nativeElement.querySelector('.cr-actions__reject')).toBeNull();
 	});
 
@@ -101,100 +99,100 @@ describe('CrDetailComponent', () => {
 	});
 
 	describe('actions', () => {
-	const q = (fixture: ComponentFixture<CrDetailComponent>, sel: string) => fixture.nativeElement.querySelector(sel);
-	const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+		const q = (fixture: ComponentFixture<CrDetailComponent>, sel: string) => fixture.nativeElement.querySelector(sel);
+		const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-	it('approve updates the status, adds a timeline entry and removes the actions', async () => {
-		const fixture = await render(users.approver, 'CR-1');
-		q(fixture, '.cr-actions__approve').click();
-		await flush();
-		fixture.detectChanges();
-		expect(q(fixture, '.cr-status').textContent).toContain('APPROVED');
-		const actions = Array.from(fixture.nativeElement.querySelectorAll('.cr-timeline__action')).map((e) => (e as HTMLElement).textContent);
-		expect(actions[actions.length - 1]).toBe('APPROVE');
-		expect(q(fixture, '.cr-actions__approve').disabled).toBe(true);
-		expect(q(fixture, '.cr-actions__reject')).toBeNull();
-	});
+		it('approve updates the status, adds a timeline entry and removes the actions', async () => {
+			const fixture = await render(users.approver, 'CR-1');
+			q(fixture, '.cr-actions__approve').click();
+			await flush();
+			fixture.detectChanges();
+			expect(q(fixture, '.cr-status').textContent).toContain('APPROVED');
+			const actions = Array.from(fixture.nativeElement.querySelectorAll('.cr-timeline__action')).map((e) => (e as HTMLElement).textContent);
+			expect(actions[actions.length - 1]).toBe('APPROVE');
+			expect(q(fixture, '.cr-actions__approve')).toBeNull();
+			expect(q(fixture, '.cr-actions__reject')).toBeNull();
+		});
 
-	it('disables the buttons while a slow approve is pending and calls the API only once on a double click', async () => {
-		const fixture = await render(users.approver, 'CR-1');
-		const api = TestBed.inject(CrApiService);
-		const spy = jest.spyOn(api, 'approve');
-		api.latencyMs = 30;
+		it('disables the buttons while a slow approve is pending and calls the API only once on a double click', async () => {
+			const fixture = await render(users.approver, 'CR-1');
+			const api = TestBed.inject(CrApiService);
+			const spy = jest.spyOn(api, 'approve');
+			api.latencyMs = 30;
 
-		const btn: HTMLButtonElement = q(fixture, '.cr-actions__approve');
-		btn.click();
-		btn.click();
-		fixture.detectChanges();
-		expect(btn.disabled).toBe(true);
-		expect(q(fixture, '.cr-actions__reject-btn').disabled).toBe(true);
-		expect(q(fixture, '.cr-status').textContent).toContain('PENDING_APPROVAL'); // no optimistic update
+			const btn: HTMLButtonElement = q(fixture, '.cr-actions__approve');
+			btn.click();
+			btn.click();
+			fixture.detectChanges();
+			expect(btn.disabled).toBe(true);
+			expect(q(fixture, '.cr-actions__reject-btn').disabled).toBe(true);
+			expect(q(fixture, '.cr-status').textContent).toContain('PENDING_APPROVAL'); // no optimistic update
 
-		await wait(60);
-		fixture.detectChanges();
-		expect(spy).toHaveBeenCalledTimes(1);
-		expect(q(fixture, '.cr-status').textContent).toContain('APPROVED');
-	});
+			await wait(60);
+			fixture.detectChanges();
+			expect(spy).toHaveBeenCalledTimes(1);
+			expect(q(fixture, '.cr-status').textContent).toContain('APPROVED');
+		});
 
-	it('shows an error and keeps the CR actionable when approve fails', async () => {
-		const fixture = await render(users.approver, 'CR-1');
-		TestBed.inject(CrApiService).failNext = true;
-		q(fixture, '.cr-actions__approve').click();
-		await flush();
-		fixture.detectChanges();
-		expect(q(fixture, '.cr-actions__error').textContent).toContain('Network error');
-		expect(q(fixture, '.cr-status').textContent).toContain('PENDING_APPROVAL');
-		expect(q(fixture, '.cr-actions__approve').disabled).toBe(false);
-	});
+		it('shows an error and keeps the CR actionable when approve fails', async () => {
+			const fixture = await render(users.approver, 'CR-1');
+			TestBed.inject(CrApiService).failNext = true;
+			q(fixture, '.cr-actions__approve').click();
+			await flush();
+			fixture.detectChanges();
+			expect(q(fixture, '.cr-actions__error').textContent).toContain('Network error');
+			expect(q(fixture, '.cr-status').textContent).toContain('PENDING_APPROVAL');
+			expect(q(fixture, '.cr-actions__approve').disabled).toBe(false);
+		});
 
-	it('keeps Reject disabled until a reason is typed', async () => {
-		const fixture = await render(users.approver, 'CR-1');
-		const rejectBtn: HTMLButtonElement = q(fixture, '.cr-actions__reject-btn');
-		expect(rejectBtn.disabled).toBe(true);
+		it('keeps Reject disabled until a reason is typed', async () => {
+			const fixture = await render(users.approver, 'CR-1');
+			const rejectBtn: HTMLButtonElement = q(fixture, '.cr-actions__reject-btn');
+			expect(rejectBtn.disabled).toBe(true);
 
-		fixture.componentInstance.rejectControl.setValue('   ');
-		fixture.detectChanges();
-		expect(rejectBtn.disabled).toBe(true);
+			fixture.componentInstance.rejectControl.setValue('   ');
+			fixture.detectChanges();
+			expect(rejectBtn.disabled).toBe(true);
 
-		fixture.componentInstance.rejectControl.setValue('Too expensive');
-		fixture.detectChanges();
-		expect(rejectBtn.disabled).toBe(false);
-	});
+			fixture.componentInstance.rejectControl.setValue('Too expensive');
+			fixture.detectChanges();
+			expect(rejectBtn.disabled).toBe(false);
+		});
 
-	it('does not call the API and shows the validation message when rejecting without a reason', async () => {
-		const fixture = await render(users.approver, 'CR-1');
-		const spy = jest.spyOn(TestBed.inject(CrApiService), 'reject');
-		await fixture.componentInstance.reject();
-		fixture.detectChanges();
-		expect(spy).not.toHaveBeenCalled();
-		expect(q(fixture, '.cr-actions__reason-error')).not.toBeNull();
-	});
+		it('does not call the API and shows the validation message when rejecting without a reason', async () => {
+			const fixture = await render(users.approver, 'CR-1');
+			const spy = jest.spyOn(TestBed.inject(CrApiService), 'reject');
+			await fixture.componentInstance.reject();
+			fixture.detectChanges();
+			expect(spy).not.toHaveBeenCalled();
+			expect(q(fixture, '.cr-actions__reason-error')).not.toBeNull();
+		});
 
-	it('reject sends the trimmed reason and shows it in the timeline', async () => {
-		const fixture = await render(users.approver, 'CR-1');
-		const spy = jest.spyOn(TestBed.inject(CrApiService), 'reject');
-		fixture.componentInstance.rejectControl.setValue('  Too expensive  ');
-		fixture.detectChanges(); // re-render so the Reject button becomes enabled
-		q(fixture, '.cr-actions__reject-btn').click();
-		await flush();
-		fixture.detectChanges();
-		expect(spy).toHaveBeenCalledWith(users.approver, 'CR-1', expect.any(String), 'Too expensive');
-		expect(q(fixture, '.cr-status').textContent).toContain('REJECTED');
-		expect(q(fixture, '.cr-timeline__note').textContent).toContain('Too expensive');
-		expect(q(fixture, '.cr-actions__reject')).toBeNull();
-	});
+		it('reject sends the trimmed reason and shows it in the timeline', async () => {
+			const fixture = await render(users.approver, 'CR-1');
+			const spy = jest.spyOn(TestBed.inject(CrApiService), 'reject');
+			fixture.componentInstance.rejectControl.setValue('  Too expensive  ');
+			fixture.detectChanges(); // re-render so the Reject button becomes enabled
+			q(fixture, '.cr-actions__reject-btn').click();
+			await flush();
+			fixture.detectChanges();
+			expect(spy).toHaveBeenCalledWith(users.approver, 'CR-1', expect.any(String), 'Too expensive');
+			expect(q(fixture, '.cr-status').textContent).toContain('REJECTED');
+			expect(q(fixture, '.cr-timeline__note').textContent).toContain('Too expensive');
+			expect(q(fixture, '.cr-actions__reject')).toBeNull();
+		});
 
-	it('keeps the typed reason and shows an error when reject fails', async () => {
-		const fixture = await render(users.approver, 'CR-1');
-		TestBed.inject(CrApiService).failNext = true;
-		fixture.componentInstance.rejectControl.setValue('Too expensive');
-		fixture.detectChanges(); // re-render so the Reject button becomes enabled
-		q(fixture, '.cr-actions__reject-btn').click();
-		await flush();
-		fixture.detectChanges();
-		expect(q(fixture, '.cr-actions__error').textContent).toContain('Network error');
-		expect(q(fixture, '.cr-status').textContent).toContain('PENDING_APPROVAL');
-		expect(q(fixture, '.cr-actions__reason').value).toBe('Too expensive');
+		it('keeps the typed reason and shows an error when reject fails', async () => {
+			const fixture = await render(users.approver, 'CR-1');
+			TestBed.inject(CrApiService).failNext = true;
+			fixture.componentInstance.rejectControl.setValue('Too expensive');
+			fixture.detectChanges(); // re-render so the Reject button becomes enabled
+			q(fixture, '.cr-actions__reject-btn').click();
+			await flush();
+			fixture.detectChanges();
+			expect(q(fixture, '.cr-actions__error').textContent).toContain('Network error');
+			expect(q(fixture, '.cr-status').textContent).toContain('PENDING_APPROVAL');
+			expect(q(fixture, '.cr-actions__reason').value).toBe('Too expensive');
 		});
 	});
 });
